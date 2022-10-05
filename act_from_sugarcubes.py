@@ -44,11 +44,7 @@ batch_size = 100
 
 inputsize = size*size*size #(no of voxels)
 
-
-train_test_split = .75 #roughly 30% test set
-# train_nexamples = 10000 # number of training stimuli
-# test_nexamples = 1000 # number of test stimuli
-# 
+train_test_split = .75 
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -83,35 +79,22 @@ class NeuralNetwork(nn.Module):
         outputs = self.layer_stack(x)
         return outputs
 
-# def get_dataset(ground_truth, est_activation, train_test_split, batch_size, mode=['test', 'train'], figname=None):
-# def get_dataset(ground_truth, est_activation, train_test_split, batch_size, figname=None):
+
 def get_dataset(ground_truth, est_activation, train_test_split, batch_size,  mode=['test', 'train'], figname=None):
     print(ground_truth.shape)
+    
+    # caution: should be using ground_truth variable instead of no_motion_no_noise
+    # rename ground truth to activated brain ?
 
-    # print(f'Mode is {mode}')
-
-    # if mode =='train':
-
+    print(f'Shape of no_motion_no_noise: {no_motion_no_noise.shape}')
     
-    
-
-    
-    
-    
-    # leg length from origional array
-    print(f'Shape of no_motion_no_noise[0]: {no_motion_no_noise.shape[0]}')
     n_cubes = no_motion_no_noise.shape[0] #264
-    print(f'Shape of no_motion_no_noise[4]: {no_motion_no_noise.shape[4]}')
     n_vols = no_motion_no_noise.shape[4] #24
-    
     n_samples = n_cubes * n_vols
     new_array = np.empty((n_samples, size, size, size))
     print(f'new_array.shape: {new_array.shape}') #(6336, 6, 6, 6)
     
-    
-    
-    
-    # FIX Y TO MATCH X!
+
     new_y_array = np.empty((n_samples, 1, 1))
     
     
@@ -194,12 +177,6 @@ def get_dataset(ground_truth, est_activation, train_test_split, batch_size,  mod
         return DataLoader(my_test_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
     
 
-    
-       
-    
-
-
-
     # if figname:
     #     fig,ax = plt.subplots(ncols=3, sharey=True)
     #     ax[0].imshow(my_x[:,0,:], aspect='auto', interpolation='none')
@@ -210,8 +187,6 @@ def get_dataset(ground_truth, est_activation, train_test_split, batch_size,  mod
     #     ax[2].imshow(my_noise, aspect='auto', interpolation='none')
     #     ax[2].set_title('noise')
     #     plt.savefig(figname)
-
-
 
 
 
@@ -272,7 +247,6 @@ if __name__=='__main__':
 
         print(train_dataloader)
 
-        # # TRY ADDING
         loss_fn = nn.L1Loss()
         optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
@@ -283,8 +257,10 @@ if __name__=='__main__':
             train(train_dataloader, model, loss_fn, optimizer)
             test_loss.append(test(test_dataloader, model, loss_fn))
 
+        # where is the averaging occuring - not approriate for our net!
+        # what is the ideal in our case?
         # ideal model of averaging 10 onwards
-        ideal_loss=test_ideal(test_dataloader, model, loss_fn)
+        # ideal_loss=test_ideal(test_dataloader, model, loss_fn)
 
         fig, ax =plt.subplots(nrows=len(list(model.named_parameters()))//2+1)
         figind = 0
@@ -303,9 +279,10 @@ if __name__=='__main__':
         plt.xlabel('Epoch')
         plt.ylabel('L1 test loss')
 
-        plt.plot([0, epochs],[ideal_loss, ideal_loss],'g--')
+        # plt.plot([0, epochs],[ideal_loss, ideal_loss],'g--')
+    
         plt.savefig(f'graphs_sugarcube_nets/network-{networktype}_loss.png')
 
-        print(f'Ideal model, loss= {ideal_loss}')
+        # print(f'Ideal model, loss= {ideal_loss}')
 
         print("Done!")
