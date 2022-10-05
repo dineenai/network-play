@@ -45,7 +45,7 @@ batch_size = 100
 inputsize = size*size*size #(no of voxels)
 
 
-train_test_split = 184 #roughly 30% test set
+train_test_split = 264 #roughly 30% test set
 # train_nexamples = 10000 # number of training stimuli
 # test_nexamples = 1000 # number of test stimuli
 # 
@@ -83,73 +83,53 @@ class NeuralNetwork(nn.Module):
         outputs = self.layer_stack(x)
         return outputs
 
-def get_dataset(ground_truth, est_activation, train_test_split, batch_size, mode=['test', 'train'], figname=None):
+# def get_dataset(ground_truth, est_activation, train_test_split, batch_size, mode=['test', 'train'], figname=None):
+def get_dataset(ground_truth, est_activation, train_test_split, batch_size, chosen_vol, figname=None):
     print(ground_truth.shape)
 
-    print(f'Mode is {mode}')
+    # print(f'Mode is {mode}')
     # this is for train
     
-    if mode =='train':
+    # if mode =='train':
+
+    print('here')
+    chosen_vol = 7 #Manual for now
+    # train
+    # my_x = no_motion_no_noise[:train_test_split,  :, :, :, chosen_vol]
     # test
-        print('here')
-        chosen_vol = 7 #Manual for now
-        my_x = no_motion_no_noise[:train_test_split,  :, :, :, chosen_vol]
-        # flat_my_x = my_x.reshape(184, -1)
-        flat_my_x = my_x.reshape(184, 1, (size*size*size)) #(184, 1, 216)
-        print(f'Shape of my_x: {my_x.shape}')
-        print(f'flat_my_x {flat_my_x.shape}') #flat_my_x (184, 216)
-
-
-        # my_y = no_motion_no_noise[:train_test_split,  :, :, :, chosen_vol]
-        # flat_my_y = my_y.reshape(184, -1)
-        # # np.zeros((184, 1))
-        
-        print(f'Estimated activation for vol {chosen_vol} is {est_activation.est_activation[chosen_vol]}')
-        
-        act_for_vol = est_activation.est_activation[chosen_vol]
-        print(act_for_vol)
-
-        # activation value for chosen volume
-
-        flat_my_y = np.full((184, 1, 1), act_for_vol) # (184, 1, 1)
-
-        print(f'flat_my_y: {flat_my_y.shape}')
-
-        
-        tensor_x = torch.Tensor(flat_my_x) # transform to torch tensor
-        tensor_y = torch.Tensor(flat_my_y) #torch.Size([184, 1])
-        print(f"Tensors(shape): x{tensor_x.shape}, y{tensor_y.shape}")
-
-
-        my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
-        print(f'len my_dataset: {len(my_dataset)}')
-
-        return DataLoader(my_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
+    # my_x = no_motion_no_noise[train_test_split:, :, :, :, chosen_vol]
+    
+    my_x = no_motion_no_noise[:,  :, :, :, chosen_vol]
+    print(my_x.size)
+    # flat_my_x = my_x.reshape(264, -1)
+    flat_my_x = my_x.reshape(264, 1, (size*size*size)) #(264, 1, 216)
+    print(f'Shape of my_x: {my_x.shape}')
+    print(f'flat_my_x {flat_my_x.shape}') #flat_my_x (264, 216)
 
     
-    elif mode =='test':
-        chosen_vol = 7 #Manual for now
-        my_x = no_motion_no_noise[train_test_split:, :, :, :, chosen_vol]
-        # flatten all but the first value
-        flat_my_x = my_x.reshape(80, -1)
-        
-        print(flat_my_x.shape) #(184, 216)
-        print(my_x.shape)
-        
+    print(f'Estimated activation for vol {chosen_vol} is {est_activation.est_activation[chosen_vol]}')
+    
+    act_for_vol = est_activation.est_activation[chosen_vol]
+    print(act_for_vol)
 
-        print(f'Estimated activation for vol {chosen_vol} is {est_activation.est_activation[chosen_vol]}')
-        
-        my_y = no_motion_no_noise[train_test_split:, :, :, :, chosen_vol]
-        flat_my_y = my_y.reshape(80, -1)
-        tensor_x = torch.Tensor(my_x) # transform to torch tensor
-        tensor_y = torch.Tensor(my_y)
-        # print(tensor_x.reshape(184, -1).shape)
-        print(tensor_x.shape)
+    # activation value for chosen volume
+    flat_my_y = np.full((264, 1, 1), act_for_vol) # (264, 1, 1)
 
-        my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
+    print(f'flat_my_y: {flat_my_y.shape}')
 
-        print(f'len my_dataset: {len(my_dataset)}')
-        return DataLoader(my_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
+    
+    tensor_x = torch.Tensor(flat_my_x) # transform to torch tensor
+    tensor_y = torch.Tensor(flat_my_y) #torch.Size([264, 1])
+    print(f"Tensors(shape): x{tensor_x.shape}, y{tensor_y.shape}")
+
+
+    my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
+    print(f'len my_dataset: {len(my_dataset)}')
+
+    return DataLoader(my_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
+
+    
+
 
 
     # if figname:
@@ -216,8 +196,9 @@ if __name__=='__main__':
         model = NeuralNetwork(networktype).to(device)
         print(model)
 
-        train_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'train', f'graphs/network-{networktype}__train_data.png')
-        test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'test')
+        train_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 7, f'graphs/network-{networktype}_train_data.png')
+        test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 14, f'graphs/network-{networktype}_test_data.png')
+        # test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'test')
 
 
         print(train_dataloader)
@@ -233,29 +214,29 @@ if __name__=='__main__':
             train(train_dataloader, model, loss_fn, optimizer)
             test_loss.append(test(test_dataloader, model, loss_fn))
 
-        # # ideal model of averaging 10 onwards
-        # ideal_loss=test_ideal(test_dataloader, model, loss_fn)
+        # ideal model of averaging 10 onwards
+        ideal_loss=test_ideal(test_dataloader, model, loss_fn)
 
-        # fig, ax =plt.subplots(nrows=len(list(model.named_parameters()))//2+1)
-        # figind = 0
-        # for ind, (name, param) in enumerate(model.named_parameters()):
-        #     if 'weight' in name:
-        #         pars = param.cpu().detach().numpy()
-        #         ax[figind].plot(pars.ravel())
-        #         ax[figind].set_title(name)
-        #         figind+=1
+        fig, ax =plt.subplots(nrows=len(list(model.named_parameters()))//2+1)
+        figind = 0
+        for ind, (name, param) in enumerate(model.named_parameters()):
+            if 'weight' in name:
+                pars = param.cpu().detach().numpy()
+                ax[figind].plot(pars.ravel())
+                ax[figind].set_title(name)
+                figind+=1
 
 
-        # plt.savefig(f'graphs/network-{networktype}_model_parameters.png')
+        plt.savefig(f'graphs/network-{networktype}_model_parameters.png')
 
-        # plt.figure()
-        # plt.plot(test_loss)
-        # plt.xlabel('Epoch')
-        # plt.ylabel('L1 test loss')
+        plt.figure()
+        plt.plot(test_loss)
+        plt.xlabel('Epoch')
+        plt.ylabel('L1 test loss')
 
-        # plt.plot([0, epochs],[ideal_loss, ideal_loss],'g--')
-        # plt.savefig(f'graphs/network-{networktype}_loss.png')
+        plt.plot([0, epochs],[ideal_loss, ideal_loss],'g--')
+        plt.savefig(f'graphs/network-{networktype}_loss.png')
 
-        # print(f'Ideal model, loss= {ideal_loss}')
+        print(f'Ideal model, loss= {ideal_loss}')
 
-        # print("Done!")
+        print("Done!")
