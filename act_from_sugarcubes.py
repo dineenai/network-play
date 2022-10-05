@@ -45,7 +45,7 @@ batch_size = 100
 inputsize = size*size*size #(no of voxels)
 
 
-train_test_split = 264 #roughly 30% test set
+train_test_split = .75 #roughly 30% test set
 # train_nexamples = 10000 # number of training stimuli
 # test_nexamples = 1000 # number of test stimuli
 # 
@@ -84,38 +84,66 @@ class NeuralNetwork(nn.Module):
         return outputs
 
 # def get_dataset(ground_truth, est_activation, train_test_split, batch_size, mode=['test', 'train'], figname=None):
-def get_dataset(ground_truth, est_activation, train_test_split, batch_size, chosen_vol, figname=None):
+# def get_dataset(ground_truth, est_activation, train_test_split, batch_size, figname=None):
+def get_dataset(ground_truth, est_activation, train_test_split, batch_size,  mode=['test', 'train'], figname=None):
     print(ground_truth.shape)
 
     # print(f'Mode is {mode}')
-    # this is for train
-    
+
     # if mode =='train':
 
-    print('here')
-    chosen_vol = 7 #Manual for now
-    # train
-    # my_x = no_motion_no_noise[:train_test_split,  :, :, :, chosen_vol]
-    # test
-    # my_x = no_motion_no_noise[train_test_split:, :, :, :, chosen_vol]
     
-    my_x = no_motion_no_noise[:,  :, :, :, chosen_vol]
-    print(my_x.size)
-    # flat_my_x = my_x.reshape(264, -1)
-    flat_my_x = my_x.reshape(264, 1, (size*size*size)) #(264, 1, 216)
-    print(f'Shape of my_x: {my_x.shape}')
-    print(f'flat_my_x {flat_my_x.shape}') #flat_my_x (264, 216)
+    
 
     
-    print(f'Estimated activation for vol {chosen_vol} is {est_activation.est_activation[chosen_vol]}')
     
-    act_for_vol = est_activation.est_activation[chosen_vol]
-    print(act_for_vol)
+    
+    # leg length from origional array
+    print(f'Shape of no_motion_no_noise[0]: {no_motion_no_noise.shape[0]}')
+    n_cubes = no_motion_no_noise.shape[0] #264
+    print(f'Shape of no_motion_no_noise[4]: {no_motion_no_noise.shape[4]}')
+    n_vols = no_motion_no_noise.shape[4] #24
+    
+    n_samples = n_cubes * n_vols
+    new_array = np.empty((n_samples, size, size, size))
+    print(f'new_array.shape: {new_array.shape}') #(6336, 6, 6, 6)
+    
+    
+    
+    
+    # FIX Y TO MATCH X!
+    new_y_array = np.empty((n_samples, 1, 1))
+    
+    
+    
+    # Restructure our data so that we have 264 * 24 as index!
+    # dataloade only takes 1 index => combine volume and cube index! 
 
-    # activation value for chosen volume
-    flat_my_y = np.full((264, 1, 1), act_for_vol) # (264, 1, 1)
+    # should combine volume axis with 
+    # as long as appropriate activation value it should be fine?
+    # how would this split between training and testing
 
-    print(f'flat_my_y: {flat_my_y.shape}')
+    for cube_idx in range(n_cubes):
+        for vol_no in range(n_vols):
+            new_array[(n_cubes * vol_no)+ cube_idx] = no_motion_no_noise[cube_idx, :, :, :, vol_no]
+            # set activation for each volume
+            new_y_array[(n_cubes * vol_no)+ cube_idx] = est_activation.est_activation[vol_no]
+            
+    
+    # print(new_y_array)
+    print(new_array.shape)    #new_array.shape: (6336, 6, 6, 6)
+    print(n_samples)
+    flat_new_array = new_array.reshape(n_samples, 1, (size*size*size)) #(264, 1, 216)
+    print(flat_new_array.shape)
+    
+
+    flat_my_x = flat_new_array
+    flat_my_y = new_y_array
+    
+    counts = np.unique(flat_my_y, return_counts=True)
+    print(len(counts[0]))
+    print(counts)
+    
 
     
     tensor_x = torch.Tensor(flat_my_x) # transform to torch tensor
@@ -124,10 +152,50 @@ def get_dataset(ground_truth, est_activation, train_test_split, batch_size, chos
 
 
     my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
-    print(f'len my_dataset: {len(my_dataset)}')
+    print(f'len my_dataset: {len(my_dataset)} ({n_cubes} * {n_vols})')
 
-    return DataLoader(my_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
 
+    n_train_samples = int(len(my_dataset) * train_test_split)
+    
+    if mode == 'train':
+        print("Train")
+        
+        
+        # slice after for train set
+        train_x = tensor_x[:n_train_samples, :, :]
+        train_y = tensor_y[:n_train_samples, :]
+        print(train_x.shape) 
+        print(train_y.shape) 
+        
+        my_train_dataset = TensorDataset(train_x,train_y) # create your datset
+        
+        return DataLoader(my_train_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
+
+        
+    if mode =='test':
+        print("TEST")
+        print(tensor_x.shape) #(6336, 6, 6, 6)
+        
+        
+        # add rounding for when not even!
+        # these will be segregated by volume? yes as splitting BEFORE shuffle!!!!!
+        
+         
+        # n_test_samples = len(my_dataset) * (1 - train_test_split)
+        
+        # slice before for test set
+        test_x = tensor_x[n_train_samples:, :, :]
+        test_y = tensor_y[n_train_samples:, :]
+        print(test_x.shape) 
+
+        print(test_y.shape)
+        
+        my_test_dataset = TensorDataset(test_x,test_y) # create your datset
+        return DataLoader(my_test_dataset, batch_size=batch_size, shuffle=True) # create your dataloader
+    
+
+    
+       
     
 
 
@@ -149,6 +217,7 @@ def get_dataset(ground_truth, est_activation, train_test_split, batch_size, chos
 
 def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
+    print(f'size of dataset: {size}') #264
     model.train()
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to(device), y.to(device)
@@ -191,13 +260,13 @@ def test_ideal(dataloader, model, loss_fn):
 
 if __name__=='__main__':
 
-    Path("graphs").mkdir(parents=True, exist_ok=True)
+    Path("graphs_sugarcube_nets").mkdir(parents=True, exist_ok=True)
     for networktype in ['onelinear','twolinear']:
         model = NeuralNetwork(networktype).to(device)
         print(model)
 
-        train_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 7, f'graphs/network-{networktype}_train_data.png')
-        test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 14, f'graphs/network-{networktype}_test_data.png')
+        train_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'train', f'graphs_sugarcube_nets/network-{networktype}_train_data.png')
+        test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'test', f'graphs_sugarcube_nets/network-{networktype}_test_data.png')
         # test_dataloader = get_dataset(no_motion_no_noise, est_activation, train_test_split, batch_size, 'test')
 
 
@@ -227,7 +296,7 @@ if __name__=='__main__':
                 figind+=1
 
 
-        plt.savefig(f'graphs/network-{networktype}_model_parameters.png')
+        plt.savefig(f'graphs_sugarcube_nets/network-{networktype}_model_parameters.png')
 
         plt.figure()
         plt.plot(test_loss)
@@ -235,7 +304,7 @@ if __name__=='__main__':
         plt.ylabel('L1 test loss')
 
         plt.plot([0, epochs],[ideal_loss, ideal_loss],'g--')
-        plt.savefig(f'graphs/network-{networktype}_loss.png')
+        plt.savefig(f'graphs_sugarcube_nets/network-{networktype}_loss.png')
 
         print(f'Ideal model, loss= {ideal_loss}')
 
